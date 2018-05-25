@@ -21,6 +21,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate{
     var canRestart = Bool()
     var scoreLabelNode:SKLabelNode!
     var score = NSInteger()
+    var highScore = NSInteger()
+    var screenshot: UIImage!
+    var scoreboard: UIImageView!
+    var resetButton: UIButton!
+    var shareButton: UIButton!
+    var scoreLabel: UILabel!
+    var highScoreLabel: UILabel!
+    var medalLabel: UILabel!
     
     let birdCategory: UInt32 = 1 << 0
     let worldCategory: UInt32 = 1 << 1
@@ -139,6 +147,71 @@ class GameScene: SKScene, SKPhysicsContactDelegate{
         scoreLabelNode.text = String(score)
         self.addChild(scoreLabelNode)
         
+        // set up scoreboard/buttons
+        self.scoreboard = UIImageView(image: UIImage(named: "scoreboard"))
+        self.view?.addSubview(self.scoreboard)
+        
+        self.resetButton = UIButton(frame: CGRect(x: 0, y: 0, width: 120, height: 50))
+        self.resetButton.setBackgroundImage(UIImage(named: "reset"), for: .normal)
+        self.view?.addSubview(self.resetButton)
+        
+        self.shareButton = UIButton(frame: CGRect(x: 0, y: 0, width: 120, height: 50))
+        self.shareButton.setBackgroundImage(UIImage(named: "share"), for: .normal)
+        self.view?.addSubview(self.shareButton)
+        
+        // add constraints to buttons/scoreboard
+        
+        self.scoreboard.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint(item: self.scoreboard, attribute: .centerX, relatedBy: .equal, toItem: self.view!, attribute: .centerX, multiplier: 1, constant: 0).isActive = true
+        NSLayoutConstraint(item: self.scoreboard, attribute: .centerY, relatedBy: .equal, toItem: self.view!, attribute: .centerY, multiplier: 1, constant: 0).isActive = true
+        
+        self.resetButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint(item: self.resetButton, attribute: .leading, relatedBy: .equal, toItem: self.scoreboard, attribute: .leading, multiplier: 1, constant: 0).isActive = true
+        NSLayoutConstraint(item: self.resetButton, attribute: .top, relatedBy: .equal, toItem: self.scoreboard, attribute: .bottom, multiplier: 1, constant: -70).isActive = true
+        NSLayoutConstraint(item: self.resetButton, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: 120).isActive = true
+        NSLayoutConstraint(item: self.resetButton, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: 50).isActive = true
+        
+        self.shareButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint(item: self.shareButton, attribute: .trailing, relatedBy: .equal, toItem: self.scoreboard, attribute: .trailing, multiplier: 1, constant: 0).isActive = true
+        NSLayoutConstraint(item: self.shareButton, attribute: .top, relatedBy: .equal, toItem: self.scoreboard, attribute: .bottom, multiplier: 1, constant: -70).isActive = true
+        NSLayoutConstraint(item: self.shareButton, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: 120).isActive = true
+        NSLayoutConstraint(item: self.shareButton, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: 50).isActive = true
+        
+        // add target function to buttons
+        self.resetButton.addTarget(self, action: #selector(self.buttonTapped(sender:)), for: .touchUpInside)
+        self.shareButton.addTarget(self, action: #selector(self.buttonTapped(sender:)), for: .touchUpInside)
+        
+        // add tags to buttons
+        self.resetButton.tag = 2
+        self.shareButton.tag = 3
+        
+        // initialize labels and add them to the scoreboard
+        self.scoreLabel = UILabel(frame: CGRect(x: 175, y: 102, width: 50, height: 21))
+        scoreLabel.font = UIFont(name: "MarkerFelt-Wide", size: 24)
+        scoreLabel.textAlignment = .center
+        scoreLabel.text = String(score)
+        
+        self.highScoreLabel = UILabel(frame: CGRect(x: 175, y: 145, width: 50, height: 21))
+        highScoreLabel.font = UIFont(name: "MarkerFelt-Wide", size: 24)
+        highScoreLabel.textAlignment = .center
+        highScoreLabel.text = String(highScore)
+        
+        self.medalLabel = UILabel(frame: CGRect(x: 28, y: 106, width: 50, height: 50))
+        medalLabel.font = UIFont(name: "MarkerFelt-Wide", size: 48)
+        medalLabel.textAlignment = .center
+        medalLabel.text = "★"
+        
+        self.scoreboard.addSubview(self.scoreLabel)
+        self.scoreboard.addSubview(self.highScoreLabel)
+        self.scoreboard.addSubview(self.medalLabel)
+        
+        // initially hide the buttons and scoreboard
+        self.scoreboard.isHidden = true
+        self.resetButton.isHidden = true
+        self.shareButton.isHidden = true
+        
+        // initialize highscore from userDefaults
+        self.highScore = UserDefaults.standard.integer(forKey: "highscore")
     }
     
     func spawnPipes() {
@@ -203,16 +276,59 @@ class GameScene: SKScene, SKPhysicsContactDelegate{
         
         // Restart animation
         moving.speed = 1
+        
+        // Re-hide scoreboard and buttons
+        self.scoreboard.isHidden = true
+        self.resetButton.isHidden = true
+        self.shareButton.isHidden = true
+        
+        // un-hide score
+        self.scoreLabelNode.isHidden = false
     }
+    
+    func gameOver() {
+        self.screenshot = self.snapshotImage(view: self.view!)
+        
+        // hide score label above scoreboard
+        self.scoreLabelNode.isHidden = true
+        
+        // save high score if changed
+        if score > highScore {
+            UserDefaults.standard.set(score, forKey: "highscore")
+            highScore = score
+        }
+        
+        // un-hide scoreboard and buttons
+        self.scoreboard.isHidden = false
+        self.resetButton.isHidden = false
+        self.shareButton.isHidden = false
+        
+        // change scoreboard label values
+        self.scoreLabel.text = String(score)
+        self.highScoreLabel.text = String(highScore)
+        self.medalLabel.text = "★"
+        
+        if score > 10 {
+            self.medalLabel.textColor = UIColor.yellow
+        } else if score > 6 && score <= 10 {
+            self.medalLabel.textColor = UIColor.lightGray
+        } else if score > 3 {
+            self.medalLabel.textColor = UIColor.brown
+        } else {
+            self.medalLabel.textColor = UIColor.black
+            self.medalLabel.text = ""
+        }
+    }
+    
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         if moving.speed > 0  {
             for _ in touches { // do we need all touches?
                 bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
                 bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 30))
             }
-        } else if canRestart {
+        }/* else if canRestart {
             self.resetScene()
-        }
+        }*/
     }
     
     override func update(_ currentTime: TimeInterval) {
@@ -232,11 +348,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate{
                 scoreLabelNode.run(SKAction.sequence([SKAction.scale(to: 1.5, duration:TimeInterval(0.1)), SKAction.scale(to: 1.0, duration:TimeInterval(0.1))]))
             } else {
                 
+                self.gameOver()
+                
                 moving.speed = 0
                 
                 bird.physicsBody?.collisionBitMask = worldCategory
-                bird.run(  SKAction.rotate(byAngle: CGFloat(Double.pi) * CGFloat(bird.position.y) * 0.01, duration:1), completion:{self.bird.speed = 0 })
-                
+                bird.run(  SKAction.rotate(byAngle: CGFloat(Double.pi) * CGFloat(bird.position.y) * 0.01, duration:1), completion: {
+                    self.bird.speed = 0
+                })
                 
                 // Flash background if contact is detected
                 self.removeAction(forKey: "flash")
@@ -249,5 +368,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate{
                             })]), withKey: "flash")
             }
         }
+    }
+    
+    @objc func buttonTapped(sender: UIButton) {
+        if sender.tag == 2 {
+            self.resetScene()
+        } else if sender.tag == 3 {
+            let activityVC = UIActivityViewController(activityItems: [self.screenshot], applicationActivities: nil)
+            self.view?.window?.rootViewController?.present(activityVC, animated: true, completion: nil)
+        }
+    }
+    
+    func snapshotImage(view: UIView) -> UIImage {
+        UIGraphicsBeginImageContextWithOptions(view.bounds.size, true, 0)
+        view.drawHierarchy(in: view.bounds, afterScreenUpdates: false)
+        let image = UIGraphicsGetImageFromCurrentImageContext()!
+        UIGraphicsEndImageContext()
+        return image
     }
 }
